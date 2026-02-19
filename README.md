@@ -1,6 +1,8 @@
 # Electrocardiogram, for your CPU, written in Rust
 
 A terminal ECG-style monitor that renders CPU load as a scrolling waveform. Colors shift from green to yellow to red as the load climbs.
+
+![ECG CPU screenshot](ecg-cpu.png)
 ## Features
 - Linux CPU load via `/proc/stat`
 - ECG-style trace with dynamic pulses
