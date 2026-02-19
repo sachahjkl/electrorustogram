@@ -4,17 +4,20 @@ A terminal ECG-style monitor that renders CPU load as a scrolling waveform. Colo
 
 ![ECG CPU screenshot](ecg-cpu.png)
 ## Features
-- Linux CPU load via `/proc/stat`
+- Cross-platform CPU load via `sysinfo`
 - ECG-style trace with dynamic pulses
 - Color-coded load (green/yellow/red)
 - Runtime FPS control
 ## Requirements
-- Linux
+- Linux or Windows
 - Rust (stable)
 ## Run
 ```bash
 cargo run
 ```
+
+## Releases
+- GitHub Actions builds release binaries for Linux (x86_64-unknown-linux-gnu) and Windows (x86_64-pc-windows-msvc) on version tags.
 ## Controls
 - `q` or `Esc`: quit
 - `+` / `-`: increase or decrease FPS

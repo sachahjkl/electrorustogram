@@ -3,44 +3,13 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
 use crossterm::terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{execute, QueueableCommand};
-use std::fs;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
+use sysinfo::{CpuExt, System, SystemExt};
 
-#[derive(Clone, Copy)]
-struct CpuTimes {
-    idle: u64,
-    total: u64,
-}
-
-fn read_cpu_times() -> Option<CpuTimes> {
-    let contents = fs::read_to_string("/proc/stat").ok()?;
-    let line = contents.lines().next()?;
-    let mut parts = line.split_whitespace();
-    if parts.next()? != "cpu" {
-        return None;
-    }
-
-    let mut total: u64 = 0;
-    let mut idle: u64 = 0;
-    for (i, part) in parts.enumerate() {
-        let value: u64 = part.parse().ok()?;
-        total = total.saturating_add(value);
-        if i == 3 || i == 4 {
-            idle = idle.saturating_add(value);
-        }
-    }
-
-    Some(CpuTimes { idle, total })
-}
-
-fn cpu_usage(prev: CpuTimes, next: CpuTimes) -> f32 {
-    let total_delta = next.total.saturating_sub(prev.total);
-    let idle_delta = next.idle.saturating_sub(prev.idle);
-    if total_delta == 0 {
-        return 0.0;
-    }
-    let usage = 1.0 - (idle_delta as f32 / total_delta as f32);
+fn read_cpu_usage(sys: &mut System) -> f32 {
+    sys.refresh_cpu();
+    let usage = sys.global_cpu_info().cpu_usage() / 100.0;
     usage.clamp(0.0, 1.0)
 }
 
@@ -172,7 +141,7 @@ fn main() -> io::Result<()> {
     let fps_max: u32 = 60;
     let mut phase: f32 = 0.0;
     let mut pulse: f32 = 0.0;
-    let mut prev_cpu = read_cpu_times().unwrap_or(CpuTimes { idle: 0, total: 1 });
+    let mut sys = System::new();
     let mut samples: Vec<f32> = Vec::new();
     let mut last_draw = Instant::now();
     let mut tick: u64 = 0;
@@ -205,9 +174,7 @@ fn main() -> io::Result<()> {
         }
         last_draw = now;
 
-        let cpu = read_cpu_times().unwrap_or(prev_cpu);
-        let load = cpu_usage(prev_cpu, cpu);
-        prev_cpu = cpu;
+        let load = read_cpu_usage(&mut sys);
 
         let (width, height) = terminal::size()?;
         let plot_width = width as usize;
