@@ -5,7 +5,7 @@ use crossterm::terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlt
 use crossterm::{execute, QueueableCommand};
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
-use sysinfo::{CpuExt, System, SystemExt};
+use sysinfo::System;
 
 fn read_cpu_usage(sys: &mut System) -> f32 {
     sys.refresh_cpu();
