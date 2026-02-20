@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use sysinfo::System;
 
 fn read_cpu_usage(sys: &mut System) -> f32 {
-    sys.refresh_cpu();
-    let usage = sys.global_cpu_info().cpu_usage() / 100.0;
+    sys.refresh_cpu_all();
+    let usage = sys.global_cpu_usage() / 100.0;
     usage.clamp(0.0, 1.0)
 }
 
@@ -34,6 +34,7 @@ fn render(
     phase: f32,
     pulse: f32,
     fps: u32,
+    full_clear: bool,
 ) -> io::Result<()> {
     let (width, height) = terminal::size()?;
     if width == 0 || height == 0 {
@@ -85,10 +86,12 @@ fn render(
     );
     let footer = "Press Q/Esc to quit  +/- to change FPS";
 
-    stdout.queue(Clear(ClearType::All))?;
+    if full_clear {
+        stdout.queue(Clear(ClearType::All))?;
+    }
     stdout.queue(MoveTo(0, 0))?;
     stdout.queue(SetForegroundColor(Color::White))?;
-    stdout.queue(Print(truncate_to_width(&header, width)))?;
+    stdout.queue(Print(pad_to_width(&header, width)))?;
 
     stdout.queue(SetForegroundColor(Color::DarkGrey))?;
     for (row, line) in buffer.into_iter().enumerate() {
@@ -107,15 +110,20 @@ fn render(
 
     stdout.queue(SetForegroundColor(Color::DarkGrey))?;
     stdout.queue(MoveTo(0, height.saturating_sub(1)))?;
-    stdout.queue(Print(truncate_to_width(footer, width)))?;
+    stdout.queue(Print(pad_to_width(footer, width)))?;
     stdout.queue(ResetColor)?;
     stdout.flush()?;
     Ok(())
 }
 
-fn truncate_to_width(text: &str, width: u16) -> String {
+fn pad_to_width(text: &str, width: u16) -> String {
     let max = width as usize;
-    text.chars().take(max).collect()
+    let mut out: String = text.chars().take(max).collect();
+    let len = out.chars().count();
+    if len < max {
+        out.extend(std::iter::repeat(' ').take(max - len));
+    }
+    out
 }
 
 fn resize_samples(samples: &mut Vec<f32>, width: usize) {
@@ -145,6 +153,7 @@ fn main() -> io::Result<()> {
     let mut samples: Vec<f32> = Vec::new();
     let mut last_draw = Instant::now();
     let mut tick: u64 = 0;
+    let mut last_size = terminal::size().unwrap_or((0, 0));
 
     loop {
         let now = Instant::now();
@@ -179,6 +188,10 @@ fn main() -> io::Result<()> {
         let (width, height) = terminal::size()?;
         let plot_width = width as usize;
         if height > 2 && plot_width > 0 {
+            let full_clear = (width, height) != last_size;
+            if full_clear {
+                last_size = (width, height);
+            }
             resize_samples(&mut samples, plot_width);
 
             phase += 0.25 + load * 0.7;
@@ -202,7 +215,7 @@ fn main() -> io::Result<()> {
                 samples.remove(0);
             }
 
-            render(&mut stdout, &samples, load, phase, pulse, fps)?;
+            render(&mut stdout, &samples, load, phase, pulse, fps, full_clear)?;
         }
 
         tick = tick.saturating_add(1);
